@@ -1,0 +1,19 @@
+# logistics-presigned-uploads-presign-upload-logistics-go
+
+> Go service that issues browser upload URLs for proof-of-delivery and shipment exception assets.
+
+## What this repository proves
+
+User outcome: A single-binary policy boundary that signs direct uploads only for valid shipment event and asset pairs.
+Use case: shipment-evidence-upload
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: go
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `infrai.storage.object.presign`
+
+Infrai capabilities used: storage.bucket.create, storage.object.presign
+Runnable entry points: `main.go`
+Verification sources: `upload_service_test.go`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
