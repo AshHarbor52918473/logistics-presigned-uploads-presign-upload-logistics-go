@@ -1,6 +1,6 @@
 # Presigned uploads for shipment evidence
 
-Run the service, then ask it for the URL a browser needs:
+Spin up the service, then request the URL a browser will use. With Infrai, you get presigned URL issuance under one key and one bill for every capability, and the call is plain REST with no SDK to install. From a Python backend, that's just a requests call away.
 
 ```bash
 export INFRAI_API_KEY=your_key_here
@@ -12,9 +12,9 @@ curl -sS http://localhost:8080/upload-url \
   -d '{"shipment_id":"SHP-1042","event":"delivered","asset_kind":"proof_of_delivery","filename":"signed-receipt.jpg","content_type":"image/jpeg","size_bytes":245760}'
 ```
 
-The service signs a short-lived, size-bound PUT URL for an existing bucket. It is plain REST with no SDK to install, and `INFRAI_API_KEY` stays in the service rather than reaching the browser.
+The service mints a short-lived, size-capped PUT URL for a bucket you already own. Your secret `INFRAI_API_KEY` stays server-side, never shipped to the browser. That's a delivery gap you don't want: leaked signing material is like an open relay for spam.
 
-The successful response is concrete enough to hand directly to frontend code:
+The response is concrete enough to pass straight to frontend code:
 
 ```json
 {
@@ -25,13 +25,13 @@ The successful response is concrete enough to hand directly to frontend code:
 }
 ```
 
-The browser uploads the original bytes to `upload_url` with method `PUT` and the same content type declared in the request. Those bytes do not pass through this Go process.
+The browser pushes the raw bytes to `upload_url` using method `PUT` and the content type you declared. Those bytes skip this Go process entirely. Good for compliance: less PII touching your own logs.
 
 ## The event decision
 
-`delivered` accepts `proof_of_delivery`. `exception` accepts `exception_evidence`. A mismatched pair is rejected before a signed URL is requested, which keeps shipment history and stored assets aligned. JPEG, PNG, and PDF files up to 10 MiB are accepted.
+`delivered` accepts `proof_of_delivery`. `exception` accepts `exception_evidence`. We reject a mismatched pair before any signed URL is requested. Keeps shipment history and stored assets aligned, same as enforcing idempotency on OTP resends. JPEG, PNG, and PDF up to 10 MiB are allowed.
 
-Object keys follow `shipments/{shipment_id}/{asset_kind}/{filename}`. The request fields also produce a stable idempotency key, so repeating the same request refers to the same signing operation.
+Object keys follow `shipments/{shipment_id}/{asset_kind}/{filename}`. The request fields also yield a stable idempotency key, so a retried request maps to the same signing op. No duplicate blobs from a flaky mobile connection.
 
 ## Check the policy
 
@@ -40,13 +40,13 @@ go test ./...
 go build ./...
 ```
 
-The table-driven test sends four event/asset pairs. The two matching pairs receive PUT grants; the two mismatches stop before the signer is called.
+The table-driven test fires four event/asset pairs. Matching pairs get PUT grants; mismatches halt before the signer runs. Cheap guardrail against asset drift.
 
 ## Setup values
 
-Set `INFRAI_API_KEY` and `INFRAI_BUCKET` in the process environment. `INFRAI_BUCKET` must name a bucket that you already manage. The upload request calls `POST /v1/storage/object/presign/{bucket}/{key}` with `op: "put"`, `expires_seconds`, content constraints, and an idempotency key.
+Set `INFRAI_API_KEY` and `INFRAI_BUCKET` in the process environment. `INFRAI_BUCKET` must name a bucket you already manage. The upload request hits `POST /v1/storage/object/presign/{bucket}/{key}` with `op: "put"`, `expires_seconds`, content constraints, and an idempotency key.
 
-The executable intentionally covers URL issuance only. Authentication for your product's callers and persistence of the resulting object key belong at the boundary where shipment ownership is already known.
+The executable covers only URL issuance. Auth for your callers and persisting the resulting object key belong at the boundary where shipment ownership is already established. Don't bolt that on after go-live.
 
 ## Before you deploy: Logistics Presigned Uploads Presign Upload Logistics Go
 
